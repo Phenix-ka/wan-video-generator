@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wan Video Generator — AI Video from Image + Prompt</title>
+<meta name="description" content="Turn an image and a prompt into a 5-second 720p AI video. 1 credit = 1 video. Powered by Wan 2.2.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🎬 Wan Video Generator</div>
+  <div class="topbar-right">
+    <span id="demoBadge" class="badge badge-demo" hidden>DEMO MODE — no GPU worker connected</span>
+    <span id="creditPill" class="pill" hidden>🪙 <b id="creditCount">0</b> credits</span>
+    <span id="userEmail" class="muted" hidden></span>
+    <button id="logoutBtn" class="btn btn-ghost" hidden>Sign out</button>
+  </div>
+</header>
+
+<main class="container">
+  <!-- ============ AUTH ============ -->
+  <section id="authView" class="card">
+    <h1>AI video from an image + a prompt</h1>
+    <p class="muted">Upload a photo, describe the motion, get a 5-second 720p video. 1 credit = 1 video. New accounts start with <b>5 free credits</b>.</p>
+    <div class="auth-grid">
+      <form id="loginForm" class="auth-form">
+        <h2>Sign in</h2>
+        <label>Email <input type="email" id="loginEmail" required autocomplete="email"></label>
+        <label>Password <input type="password" id="loginPassword" required autocomplete="current-password"></label>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+        <p class="error" id="loginError" hidden></p>
+      </form>
+      <form id="registerForm" class="auth-form">
+        <h2>Create account</h2>
+        <label>Email <input type="email" id="regEmail" required autocomplete="email"></label>
+        <label>Password <input type="password" id="regPassword" required minlength="8" autocomplete="new-password" placeholder="8+ characters"></label>
+        <button class="btn btn-primary" type="submit">Create account — get 5 free credits</button>
+        <p class="error" id="regError" hidden></p>
+      </form>
+    </div>
+    <p class="fineprint">Powered by Wan 2.2 (Apache 2.0). Videos are generated on a GPU worker — while no worker is connected the app runs in clearly-labeled demo mode with sample videos.</p>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section id="appView" hidden>
+    <nav class="tabs">
+      <button class="tab active" data-tab="studio">Studio</button>
+      <button class="tab" data-tab="library">Library</button>
+      <button class="tab" data-tab="credits">Credits &amp; pricing</button>
+      <button class="tab" data-tab="settings" id="settingsTabBtn" hidden>Settings</button>
+    </nav>
+
+    <!-- STUDIO -->
+    <div id="tab-studio" class="tab-panel">
+      <div class="card">
+        <h2>Generate a video</h2>
+        <p class="muted">1 credit = 1 video (5 seconds, 720p). <span id="demoNote" hidden><b>Demo mode:</b> this will return a labeled sample video until a GPU worker is connected.</span></p>
+        <form id="jobForm">
+          <label>Image (optional — start from a photo)
+            <input type="file" id="jobImage" accept="image/*">
+          </label>
+          <div id="imagePreview" class="preview" hidden><img id="imagePreviewImg" alt="Uploaded image preview"></div>
+          <label>Prompt — describe the motion
+            <textarea id="jobPrompt" rows="3" required placeholder="e.g. A smiling dentist waves at the camera, then dances in the clinic"></textarea>
+          </label>
+          <div class="form-row">
+            <label>Style
+              <select id="jobStyle">
+                <option value="cinematic">Cinematic</option>
+                <option value="fun">Fun / comedy</option>
+                <option value="product">Product</option>
+                <option value="clinic">Clinic</option>
+              </select>
+            </label>
+            <label>Format
+              <select id="jobFormat">
+                <option value="9:16">Vertical 9:16</option>
+                <option value="16:9">Horizontal 16:9</option>
+                <option value="1:1">Square 1:1</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn btn-primary" type="submit" id="generateBtn">Generate — 1 credit</button>
+          <p class="error" id="jobError" hidden></p>
+        </form>
+      </div>
+      <div id="jobResult" class="card" hidden>
+        <h3 id="jobResultTitle">Your video</h3>
+        <p id="jobResultStatus" class="muted"></p>
+        <video id="jobResultVideo" controls playsinline style="width:100%;max-height:420px;background:#000" hidden></video>
+      </div>
+    </div>
+
+    <!-- LIBRARY -->
+    <div id="tab-library" class="tab-panel" hidden>
+      <div class="card">
+        <h2>Your generations</h2>
+        <div id="jobsList"><p class="muted">No videos yet — generate your first one in the Studio.</p></div>
+      </div>
+      <div class="card">
+        <h2>Credit history</h2>
+        <div id="ledgerList"><p class="muted">No credit activity yet.</p></div>
+      </div>
+    </div>
+
+    <!-- CREDITS -->
+    <div id="tab-credits" class="tab-panel" hidden>
+      <div class="card">
+        <h2>Buy credits</h2>
+        <p class="muted">1 credit = 1 video (5 s, 720p). Pay with PayPal or Lightning (BTCPay Server).</p>
+        <div class="packs" id="packs"></div>
+        <p class="error" id="buyError" hidden></p>
+        <p class="fineprint" id="payNote">Payments are not connected yet — the owner needs to add payment keys in Settings before anyone can be charged.</p>
+      </div>
+    </div>
+
+    <!-- SETTINGS (owner only) -->
+    <div id="tab-settings" class="tab-panel" hidden>
+      <div class="card">
+        <h2>GPU worker</h2>
+        <p class="muted">Connect a GPU worker for real Wan 2.2 rendering. Until then the app stays in demo mode.</p>
+        <form id="workerForm" class="settings-form">
+          <label>Provider
+            <select id="setWorkerProvider">
+              <option value="">Not connected (demo mode)</option>
+              <option value="runpod">RunPod serverless</option>
+              <option value="vastai">Vast.ai pod (custom worker)</option>
+              <option value="custom">Custom worker (documented API)</option>
+            </select>
+          </label>
+          <label>Worker URL <input type="url" id="setWorkerUrl" placeholder="https://your-worker.example.com"></label>
+          <label>Worker API key <input type="password" id="setWorkerApiKey" placeholder="Stored masked — leave as is to keep"></label>
+          <label>RunPod endpoint ID <input type="text" id="setWorkerEndpointId" placeholder="Only for RunPod serverless"></label>
+          <button class="btn btn-primary" type="submit">Save worker settings</button>
+        </form>
+        <p class="fineprint">Worker API contract: POST /generate {job_id, prompt, style, format, duration_seconds, resolution, image_data_url} → {job_id | video_url}; GET /jobs/{id} → {status, video_url?, error?}. Full spec in README.md.</p>
+      </div>
+      <div class="card">
+        <h2>Payments</h2>
+        <p class="muted">PayPal is the primary fiat rail (ask PayPal for the <b>micropayments rate — 5% + $0.05</b> — it is much cheaper on $1 videos). Lightning via BTCPay Server is the primary crypto rail. Paddle, Stripe and Lemon Squeezy keys can be saved here, but their checkout is not wired yet — the app says so instead of pretending to charge.</p>
+        <form id="paymentsForm" class="settings-form">
+          <h3>PayPal</h3>
+          <label>Client ID <input type="text" id="setPaypalClientId"></label>
+          <label>Client secret <input type="password" id="setPaypalClientSecret" placeholder="Stored masked — leave as is to keep"></label>
+          <label>Mode
+            <select id="setPaypalMode"><option value="sandbox">Sandbox (testing)</option><option value="live">Live</option></select>
+          </label>
+          <h3>BTCPay Server (Lightning / crypto)</h3>
+          <p class="fineprint">Note: personal wallets (e.g. Wallet of Satoshi) can receive payments but cannot issue the app's invoices — the app needs BTCPay Server or LNbits on a small VPS.</p>
+          <label>BTCPay URL <input type="url" id="setBtcpayUrl" placeholder="https://btcpay.your-domain.com"></label>
+          <label>BTCPay API key <input type="password" id="setBtcpayApiKey" placeholder="Stored masked — leave as is to keep"></label>
+          <label>BTCPay store ID <input type="text" id="setBtcpayStoreId"></label>
+          <h3>Other providers (keys saved, checkout not wired yet)</h3>
+          <label>Paddle API key <input type="password" id="setPaddleKey" placeholder="Stored masked — leave as is to keep"></label>
+          <label>Stripe secret key <input type="password" id="setStripeKey" placeholder="Stored masked — leave as is to keep"></label>
+          <label>Lemon Squeezy API key <input type="password" id="setLsKey" placeholder="Stored masked — leave as is to keep"></label>
+          <button class="btn btn-primary" type="submit">Save payment settings</button>
+        </form>
+        <p class="error" id="settingsError" hidden></p>
+        <p class="success" id="settingsSaved" hidden>Settings saved.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer muted">
+  Wan Video Generator — Wan 2.2 (Apache 2.0). 1 credit = 1 video (5 s, 720p).
+</footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

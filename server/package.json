@@ -1,0 +1,1 @@
+{"dependencies":{"bcryptjs":"^3.0.2","express":"^5.1.0","jsonwebtoken":"^9.0.2"},"description":"Wan Video Generator SaaS — API server (auth, credits, jobs, PayPal + BTCPay webhooks, GPU worker client)","engines":{"node":">=22.5"},"main":"server.js","name":"wan-video-generator-server","private":true,"scripts":{"start":"node server.js"},"version":"1.0.0"}

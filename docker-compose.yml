@@ -1,0 +1,23 @@
+# Wan Video Generator — VPS deployment (server + static frontend, one container).
+# Usage:
+#   cp .env.example .env   # then fill in JWT_SECRET at minimum
+#   docker compose up -d --build
+#   open http://YOUR_VPS_IP:3000
+#
+# For a public domain + HTTPS, put Caddy or nginx in front of port 3000
+# (see README.md "Going live"). BTCPay Server / LNbits run separately —
+# they are NOT bundled here; follow the README to install them.
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: wan-saas
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # SQLite database persists here.
+      - ./data:/app/data
